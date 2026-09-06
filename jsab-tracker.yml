@@ -2,9 +2,10 @@ name: JSAB Twitch Tracker
 
 on:
   schedule:
-    # Every 10 minutes. GitHub doesn't guarantee exact timing -- scheduled
-    # runs can be delayed further when their infrastructure is busy.
-    - cron: "*/10 * * * *"
+    # Every 30 minutes -- stays safely under a private repo's 2,000 free
+    # Actions minutes/month. Once you go public, minutes are unlimited,
+    # so feel free to change this to */5 for faster checks if you want.
+    - cron: "*/30 * * * *"
   workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
 
 # Needed so the job can commit the updated state file back to the repo.
@@ -35,6 +36,9 @@ jobs:
 
       - name: Run one poll cycle
         env:
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           RUN_ONCE: "true"
         run: python jsab_tracker.py
 
