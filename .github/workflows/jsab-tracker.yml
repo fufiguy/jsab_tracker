@@ -1,0 +1,46 @@
+name: JSAB Twitch Tracker
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jsab-tracker
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run one poll cycle
+        env:
+          RUN_ONCE: "true"
+        run: python jsab_tracker.py
+
+      - name: Persist state back to the repo
+        run: |
+          if [ -n "$(git status --porcelain jsab_tracker_state.json)" ]; then
+            git config user.name "jsab-tracker-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add jsab_tracker_state.json
+            git commit -m "Update tracker state"
+            git push
+          else
+            echo "No state changes to commit."
+          fi
