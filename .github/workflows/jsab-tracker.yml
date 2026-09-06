@@ -2,10 +2,8 @@ name: JSAB Twitch Tracker
 
 on:
   schedule:
-    # Every 30 minutes -- stays safely under a private repo's 2,000 free
-    # Actions minutes/month. Once you go public, minutes are unlimited,
-    # so feel free to change this to */5 for faster checks if you want.
-    - cron: "*/30 * * * *"
+
+    - cron: "*/3 * * * *"
   workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
 
 # Needed so the job can commit the updated state file back to the repo.
