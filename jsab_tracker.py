@@ -65,6 +65,16 @@ STATE_FILE = Path(os.environ.get("STATE_FILE", "jsab_tracker_state.json"))
 # invokes this script periodically rather than it running as a daemon.
 RUN_ONCE = os.environ.get("RUN_ONCE", "false").lower() == "true"
 
+# Optional: mirror this script's log output (the same lines you see in the
+# terminal) to a second Discord channel, separate from the "someone's
+# live!" announcements above. Leave blank to disable.
+DISCORD_LOG_WEBHOOK_URL = os.environ.get("DISCORD_LOG_WEBHOOK_URL", "")
+# Minimum level forwarded to that channel. Defaults to INFO -- the same
+# routine lines you see in the terminal (poll results, auth, etc). Note
+# this means one Discord message per poll cycle, which adds up fast on a
+# short POLL_INTERVAL_SECONDS. Set to WARNING if you only want problems.
+DISCORD_LOG_LEVEL = os.environ.get("DISCORD_LOG_LEVEL", "INFO").upper()
+
 TWITCH_OAUTH_URL = "https://id.twitch.tv/oauth2/token"
 TWITCH_API_BASE = "https://api.twitch.tv/helix"
 EMBED_COLOR = 0x9146FF  # Twitch purple
@@ -74,6 +84,66 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger("jsab_tracker")
+
+
+class DiscordLogHandler(logging.Handler):
+    """Sends log records to a Discord webhook -- the same messages you see
+    in the terminal, posted to a separate channel from the "someone's
+    live!" announcements so the two don't mix."""
+
+    def __init__(self, webhook_url: str, level: int = logging.WARNING):
+        super().__init__(level=level)
+        self.webhook_url = webhook_url
+        self._session = requests.Session()
+
+    def _post(self, content: str) -> None:
+        # Deliberately prints to stderr instead of using `log.*` here --
+        # this handler is attached to `log`, so logging a failure through
+        # it would try to re-send itself. A failed send should never be
+        # invisible, so at minimum it shows up in the terminal.
+        try:
+            resp = self._session.post(
+                self.webhook_url,
+                json={"content": content[:1900], "username": "JSAB Tracker Logs"},
+                timeout=10,
+            )
+            if resp.status_code >= 400:
+                print(
+                    f"[jsab_tracker] DISCORD_LOG_WEBHOOK_URL post failed: "
+                    f"HTTP {resp.status_code} {resp.text[:200]}",
+                    file=sys.stderr,
+                )
+        except requests.RequestException as exc:
+            print(f"[jsab_tracker] DISCORD_LOG_WEBHOOK_URL post failed: {exc}", file=sys.stderr)
+
+    def send_raw(self, content: str) -> None:
+        """Send a message regardless of level filtering -- used for the
+        one-off startup confirmation below."""
+        self._post(content)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        # Matches the terminal's "[LEVEL] message" format exactly, just
+        # without the timestamp prefix.
+        message = self.format(record)
+        self._post(f"[{record.levelname}] {message}")
+
+
+if DISCORD_LOG_WEBHOOK_URL:
+    _log_level = getattr(logging, DISCORD_LOG_LEVEL, logging.WARNING)
+    _discord_log_handler = DiscordLogHandler(DISCORD_LOG_WEBHOOK_URL, level=_log_level)
+    _discord_log_handler.setFormatter(logging.Formatter("%(message)s"))
+    log.addHandler(_discord_log_handler)
+    # Terminal-only (never mirrored to Discord itself) so it's unambiguous
+    # from the run log whether the env var was actually picked up.
+    print(
+        f"[jsab_tracker] Log forwarding ENABLED -> Discord (level={DISCORD_LOG_LEVEL}).",
+        file=sys.stderr,
+    )
+else:
+    print(
+        "[jsab_tracker] DISCORD_LOG_WEBHOOK_URL is not set -- log forwarding disabled.",
+        file=sys.stderr,
+    )
 
 
 def require_config() -> None:
