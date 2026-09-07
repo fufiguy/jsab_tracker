@@ -69,11 +69,11 @@ RUN_ONCE = os.environ.get("RUN_ONCE", "false").lower() == "true"
 # terminal) to a second Discord channel, separate from the "someone's
 # live!" announcements above. Leave blank to disable.
 DISCORD_LOG_WEBHOOK_URL = os.environ.get("DISCORD_LOG_WEBHOOK_URL", "")
-# Minimum level forwarded to that channel. Defaults to INFO -- the same
-# routine lines you see in the terminal (poll results, auth, etc). Note
-# this means one Discord message per poll cycle, which adds up fast on a
-# short POLL_INTERVAL_SECONDS. Set to WARNING if you only want problems.
-DISCORD_LOG_LEVEL = os.environ.get("DISCORD_LOG_LEVEL", "INFO").upper()
+# Minimum level auto-forwarded to that channel -- covers real problems
+# (warnings/errors). The routine "[N] live stream(s) in category." summary
+# is sent separately every poll regardless of this setting; this only
+# controls whether the noisier per-line detail also gets mirrored.
+DISCORD_LOG_LEVEL = os.environ.get("DISCORD_LOG_LEVEL", "WARNING").upper()
 
 TWITCH_OAUTH_URL = "https://id.twitch.tv/oauth2/token"
 TWITCH_API_BASE = "https://api.twitch.tv/helix"
@@ -390,6 +390,12 @@ def poll_once(
         state.save()
 
         log.info("Poll complete: %d live stream(s) in category.", len(streams))
+        if DISCORD_LOG_WEBHOOK_URL:
+            # Deliberately bypasses the level filter and skips the other
+            # routine INFO lines (auth, category lookup, etc) -- those
+            # still show up in the terminal/Actions log for debugging, but
+            # only this one-line summary goes to the Discord log channel.
+            _discord_log_handler.send_raw(f"[{len(streams)}] live stream(s) in category.")
     except requests.RequestException as exc:
         log.error("Twitch API request failed: %s", exc)
     except Exception:
