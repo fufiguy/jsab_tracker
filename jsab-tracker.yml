@@ -2,8 +2,9 @@ name: JSAB Twitch Tracker
 
 on:
   schedule:
-
-    - cron: "*/3 * * * *"
+    # Every 5 minutes -- the practical fastest GitHub's scheduler supports.
+    # Free/unlimited since this repo is public.
+    - cron: "*/5 * * * *"
   workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
 
 # Needed so the job can commit the updated state file back to the repo.
@@ -37,6 +38,7 @@ jobs:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_LOG_WEBHOOK_URL: ${{ secrets.DISCORD_LOG_WEBHOOK_URL }}
           RUN_ONCE: "true"
         run: python jsab_tracker.py
 
