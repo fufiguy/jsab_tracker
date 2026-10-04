@@ -1,17 +1,18 @@
-Name: JSAB Twitch Tracker
+name: JSAB Twitch Tracker
 
 on:
   schedule:
-    # GitHub's internal scheduler (runs on best-effort basis)
-    - cron: "*/5 * * * *"
-  # Allows external API webhooks to trigger execution immediately
-  repository_dispatch:
-    types: [trigger-poll]
-  workflow_dispatch: {} # Manual trigger from GitHub UI
+    # Every 5 minutes -- the practical fastest GitHub's scheduler supports.
+    # Free/unlimited since this repo is public.
+    - cron: "*/17 * * * *"
+  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
 
+# Needed so the job can commit the updated state file back to the repo.
 permissions:
   contents: write
 
+# Prevents two runs from overlapping and racing on the state file if one
+# run happens to take longer than the interval.
 concurrency:
   group: jsab-tracker
   cancel-in-progress: false
