@@ -4,7 +4,7 @@ on:
   schedule:
     # Every 5 minutes -- the practical fastest GitHub's scheduler supports.
     # Free/unlimited since this repo is public.
-    - cron: "*/17 * * * *"
+    - cron: "2-57/5 * * * *"
   workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
 
 # Needed so the job can commit the updated state file back to the repo.
